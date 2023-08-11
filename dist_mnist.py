@@ -298,8 +298,6 @@ def main(unused_argv):
     print("After %d training step(s), validation cross entropy = %g" %
           (FLAGS.train_steps, val_xent))
 
-    print("\n\n\nTEST2")
-
 
 if __name__ == "__main__":
   tf.app.run()
