@@ -272,7 +272,7 @@ def main(unused_argv):
     print("Training begins @ %f" % time_begin)
 
     local_step = 0
-    print(mnist.train.cardinality())
+    print( np.array(image.reshape(28,28,1) for image in mnist.train.images).size)
     while True:
       # Training feed
       batch_xs, batch_ys = mnist.train.next_batch(FLAGS.batch_size)
