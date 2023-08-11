@@ -63,7 +63,7 @@ flags.DEFINE_integer("replicas_to_aggregate", None,
                      "num_workers)")
 flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 20000,
+flags.DEFINE_integer("train_steps", 2000,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 1000, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
@@ -272,6 +272,8 @@ def main(unused_argv):
     print("Training begins @ %f" % time_begin)
 
     local_step = 0
+    print(len(mnist.train))
+    print(mnist.train)
     while True:
       # Training feed
       batch_xs, batch_ys = mnist.train.next_batch(FLAGS.batch_size)
