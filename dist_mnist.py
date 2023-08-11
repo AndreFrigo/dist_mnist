@@ -272,8 +272,7 @@ def main(unused_argv):
     print("Training begins @ %f" % time_begin)
 
     local_step = 0
-    print(len(mnist.train))
-    print(mnist.train)
+    print(mnist.train.cardinality())
     while True:
       # Training feed
       batch_xs, batch_ys = mnist.train.next_batch(FLAGS.batch_size)
