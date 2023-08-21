@@ -95,6 +95,9 @@ IMAGE_PIXELS = 28
 #        'task': {'type': 'worker', 'index': 1}})
 
 def main(unused_argv):
+
+  time_start = time.time()
+
   # Parse environment variable TF_CONFIG to get job_name and task_index
 
   # If not explicitly specified in the constructor and the TF_CONFIG
@@ -116,6 +119,8 @@ def main(unused_argv):
   if FLAGS.task_index is None or FLAGS.task_index == "":
     raise ValueError("Must specify an explicit `task_index`")
 
+  print("PRINT MNIST\n")
+  print(mnist)
   print("job name = %s" % FLAGS.job_name)
   print("task index = %d" % FLAGS.task_index)
 
@@ -281,8 +286,9 @@ def main(unused_argv):
       local_step += 1
 
       now = time.time()
-      print("%f: Worker %d: training step %d done (global step: %d)" %
-            (now, FLAGS.task_index, local_step, step))
+      if (step % 2000 == 0):
+        print("%f: Worker %d: training step %d done (global step: %d)" %
+              (now, FLAGS.task_index, local_step, step))
 
       if step >= FLAGS.train_steps:
         break
@@ -290,6 +296,8 @@ def main(unused_argv):
     time_end = time.time()
     print("Training ends @ %f" % time_end)
     training_time = time_end - time_begin
+    starting_time = time_begin - time_start
+    print("Starting time (time lost before starting training: %f s" % starting_time)
     print("Training elapsed time: %f s" % training_time)
 
     # Validation feed
