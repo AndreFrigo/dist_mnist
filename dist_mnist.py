@@ -119,8 +119,6 @@ def main(unused_argv):
   if FLAGS.task_index is None or FLAGS.task_index == "":
     raise ValueError("Must specify an explicit `task_index`")
 
-  print("PRINT MNIST\n")
-  print(mnist)
   print("job name = %s" % FLAGS.job_name)
   print("task index = %d" % FLAGS.task_index)
 
