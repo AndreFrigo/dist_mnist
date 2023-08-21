@@ -65,7 +65,7 @@ flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
 flags.DEFINE_integer("train_steps", 20000,
                      "Number of (global) training steps to perform")
-flags.DEFINE_integer("batch_size", 1000, "Training batch size")
+flags.DEFINE_integer("batch_size", 60000, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
 flags.DEFINE_boolean(
     "sync_replicas", False,
@@ -284,7 +284,7 @@ def main(unused_argv):
       local_step += 1
 
       now = time.time()
-      if (step % 2000 <= 10):
+      if (step % 1000 <= 5):
         print("%f: Worker %d: training step %d done (global step: %d), time: %f" %
               (now, FLAGS.task_index, local_step, step, now - time_begin))
 
