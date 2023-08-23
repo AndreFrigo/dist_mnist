@@ -271,7 +271,7 @@ def main(unused_argv):
       sv.start_queue_runners(sess, [chief_queue_runner])
     
             
-    tf.debugging.set_log_device_placement(True)
+    tf.config.list_physical_devices('GPU')
     # Perform training
     time_begin = time.time()
     print("Training begins @ %f" % time_begin)
