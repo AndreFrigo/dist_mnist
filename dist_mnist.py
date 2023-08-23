@@ -44,6 +44,7 @@ import time
 
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
+tf.config.list_physical_devices('GPU')
 
 flags = tf.app.flags
 flags.DEFINE_string("data_dir", "/tmp/mnist-data",
@@ -271,7 +272,7 @@ def main(unused_argv):
       sv.start_queue_runners(sess, [chief_queue_runner])
     
             
-    tf.config.list_physical_devices('GPU')
+    
     # Perform training
     time_begin = time.time()
     print("Training begins @ %f" % time_begin)
