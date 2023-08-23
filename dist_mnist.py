@@ -43,7 +43,7 @@ import tempfile
 import time
 
 import tensorflow as tf
-from tensorflow.examples.tutorials.mnist import input_data
+#from tensorflow.examples.tutorials.mnist import input_data
 print(tf.__version__)
 flags = tf.app.flags
 flags.DEFINE_string("data_dir", "/tmp/mnist-data",
@@ -110,7 +110,9 @@ def main(unused_argv):
   FLAGS.job_name = task_type
   FLAGS.task_index = task_index
 
-  mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
+  #mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
+  mnist = keras.datasets.mnist.load_data()
+
   if FLAGS.download_only:
     sys.exit(0)
 
