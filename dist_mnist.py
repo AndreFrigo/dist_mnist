@@ -97,7 +97,7 @@ IMAGE_PIXELS = 28
 def main(unused_argv):
 
   time_start = time.time()
-
+  
   # Parse environment variable TF_CONFIG to get job_name and task_index
 
   # If not explicitly specified in the constructor and the TF_CONFIG
@@ -269,7 +269,9 @@ def main(unused_argv):
       # Chief worker will start the chief queue runner and call the init op.
       sess.run(sync_init_op)
       sv.start_queue_runners(sess, [chief_queue_runner])
-
+    
+            
+    tf.debugging.set_log_device_placement(True)
     # Perform training
     time_begin = time.time()
     print("Training begins @ %f" % time_begin)
