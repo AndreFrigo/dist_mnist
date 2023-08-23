@@ -97,7 +97,7 @@ IMAGE_PIXELS = 28
 def main(unused_argv):
 
   time_start = time.time()
-  
+  tf.debugging.set_log_device_placement(True)
   # Parse environment variable TF_CONFIG to get job_name and task_index
 
   # If not explicitly specified in the constructor and the TF_CONFIG
