@@ -44,8 +44,7 @@ import time
 
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
-tf.config.list_physical_devices('GPU')
-
+print(tf.__version__)
 flags = tf.app.flags
 flags.DEFINE_string("data_dir", "/tmp/mnist-data",
                     "Directory for storing mnist data")
