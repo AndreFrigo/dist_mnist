@@ -62,9 +62,9 @@ flags.DEFINE_integer("replicas_to_aggregate", None,
                      "num_workers)")
 flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 60000,
+flags.DEFINE_integer("train_steps", 2000,
                      "Number of (global) training steps to perform")
-flags.DEFINE_integer("batch_size", 1000, "Training batch size")
+flags.DEFINE_integer("batch_size", 60000, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
 flags.DEFINE_boolean(
     "sync_replicas", False,
