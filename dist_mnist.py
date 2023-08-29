@@ -54,7 +54,7 @@ flags.DEFINE_integer("task_index", None,
                      "Worker task index, should be >= 0. task_index=0 is "
                      "the master worker task the performs the variable "
                      "initialization ")
-flags.DEFINE_integer("num_gpus", 1, "Total number of gpus for each machine."
+flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
                      "If you don't use GPU, please set it to '0'")
 flags.DEFINE_integer("replicas_to_aggregate", None,
                      "Number of replicas to aggregate before parameter update"
@@ -62,7 +62,7 @@ flags.DEFINE_integer("replicas_to_aggregate", None,
                      "num_workers)")
 flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 20000,
+flags.DEFINE_integer("train_steps", 60000,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 1000, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
