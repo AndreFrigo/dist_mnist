@@ -62,9 +62,9 @@ flags.DEFINE_integer("replicas_to_aggregate", None,
                      "num_workers)")
 flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 2,
+flags.DEFINE_integer("train_steps", 20000,
                      "Number of (global) training steps to perform")
-flags.DEFINE_integer("batch_size", 50, "Training batch size")
+flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
 flags.DEFINE_boolean(
     "sync_replicas", False,
@@ -195,7 +195,6 @@ def main(unused_argv):
     cross_entropy = -tf.reduce_sum(y_ * tf.log(tf.clip_by_value(y, 1e-10, 1.0)))
     correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    print("TEST\n")
     opt = tf.train.AdamOptimizer(FLAGS.learning_rate)
 
     if FLAGS.sync_replicas:
@@ -300,23 +299,20 @@ def main(unused_argv):
     starting_time = time_begin - time_start
     print("Starting time (time lost before starting training: %f s" % starting_time)
     print("Training elapsed time: %f s" % training_time)
-
-    print("PRE ACCURACY\n")
-    print(sess.run(accuracy, feed_dict={x: mnist.test.images, y_: mnist.test.labels}))
     
    
     # Validation feed
     val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
-    val_xent = sess.run(cross_entropy, feed_dict=val_feed)
-    print("After %d training step(s), validation cross entropy = %g" %
-          (FLAGS.train_steps, val_xent))
+    val_acc = sess.run(cross_entropy, feed_dict=val_feed)
+    print("After %d training step(s), validation accuracy = %g" %
+          (FLAGS.train_steps, val_acc))
 
 
     # Test feed
     test_feed = {x: mnist.test.images, y_: mnist.test.labels}
-    test_xent = sess.run(cross_entropy, feed_dict=test_feed)
-    print("After %d training step(s), test cross entropy = %g" %
-          (FLAGS.train_steps, test_xent))
+    test_acc = sess.run(cross_entropy, feed_dict=test_feed)
+    print("After %d training step(s), test accuracy = %g" %
+          (FLAGS.train_steps, test_acc))
 
 
 
