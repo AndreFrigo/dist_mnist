@@ -299,17 +299,17 @@ def main(unused_argv):
     starting_time = time_begin - time_start
     print("Starting time (time lost before starting training: %f s" % starting_time)
     print("Training elapsed time: %f s" % training_time)
-
+    accuracy = tf.metrics.accuracy
     # Validation feed
     val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
-    val_xent = sess.run(cross_entropy, feed_dict=val_feed)
+    val_xent = sess.run(accuracy, feed_dict=val_feed)
     print("After %d training step(s), validation cross entropy = %g" %
           (FLAGS.train_steps, val_xent))
 
 
     # Test feed
     test_feed = {x: mnist.test.images, y_: mnist.test.labels}
-    test_xent = sess.run(cross_entropy, feed_dict=test_feed)
+    test_xent = sess.run(accuracy, feed_dict=test_feed)
     print("After %d training step(s), test cross entropy = %g" %
           (FLAGS.train_steps, test_xent))
   
