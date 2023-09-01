@@ -299,7 +299,7 @@ def main(unused_argv):
     starting_time = time_begin - time_start
     print("Starting time (time lost before starting training: %f s" % starting_time)
     print("Training elapsed time: %f s" % training_time)
-    accuracy = tf.reduce_mean(tf.cast(tf.argmax(y,1), "float"))
+    accuracy = tf.reduce_mean(tf.cast(y, "float"))
     # Validation feed
     val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
     val_xent = sess.run(accuracy, feed_dict=val_feed)
