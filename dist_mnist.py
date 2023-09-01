@@ -193,7 +193,9 @@ def main(unused_argv):
 
     y = tf.nn.softmax(tf.nn.xw_plus_b(hid, sm_w, sm_b))
     cross_entropy = -tf.reduce_sum(y_ * tf.log(tf.clip_by_value(y, 1e-10, 1.0)))
-
+    correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    print("TEST\n")
     opt = tf.train.AdamOptimizer(FLAGS.learning_rate)
 
     if FLAGS.sync_replicas:
@@ -299,10 +301,7 @@ def main(unused_argv):
     print("Starting time (time lost before starting training: %f s" % starting_time)
     print("Training elapsed time: %f s" % training_time)
 
-    correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
-
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
+    print("PRE ACCURACY\n")
     print(sess.run(accuracy, feed_dict={x: mnist.test.images, y_: mnist.test.labels}))
     
    
