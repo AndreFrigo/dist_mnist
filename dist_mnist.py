@@ -282,9 +282,9 @@ def main(unused_argv):
       batch_xs, batch_ys = mnist.train.next_batch(FLAGS.batch_size)
       train_feed = {x: batch_xs, y_: batch_ys}
 
-      _, step = sess.run([train_step, global_step], feed_dict=train_feed)
+      a, step = sess.run([train_step, global_step], feed_dict=train_feed)
+      print(a)
       local_step += 1
-      print(y)
       now = time.time()
       #if (step % 100 <= 5):
       #  print("%f: Worker %d: training step %d done (global step: %d), time: %f" %
@@ -300,9 +300,7 @@ def main(unused_argv):
     print("Starting time (time lost before starting training: %f s" % starting_time)
     print("Training elapsed time: %f s" % training_time)
 
-    prediction=tf.argmax(y,1)
-    print (prediction.eval(feed_dict={x: mnist.test.images}, session=sess))
-            
+   
     # Validation feed
     val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
     val_xent = sess.run(cross_entropy, feed_dict=val_feed)
