@@ -62,9 +62,9 @@ flags.DEFINE_integer("replicas_to_aggregate", None,
                      "num_workers)")
 flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 2000,
+flags.DEFINE_integer("train_steps", 2,
                      "Number of (global) training steps to perform")
-flags.DEFINE_integer("batch_size", 60000, "Training batch size")
+flags.DEFINE_integer("batch_size", 50, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
 flags.DEFINE_boolean(
     "sync_replicas", False,
@@ -284,11 +284,11 @@ def main(unused_argv):
 
       _, step = sess.run([train_step, global_step], feed_dict=train_feed)
       local_step += 1
-
+      print(y)
       now = time.time()
-      if (step % 100 <= 5):
-        print("%f: Worker %d: training step %d done (global step: %d), time: %f" %
-              (now, FLAGS.task_index, local_step, step, now - time_begin))
+      #if (step % 100 <= 5):
+      #  print("%f: Worker %d: training step %d done (global step: %d), time: %f" %
+      #        (now, FLAGS.task_index, local_step, step, now - time_begin))
 
       if step >= FLAGS.train_steps:
         break
