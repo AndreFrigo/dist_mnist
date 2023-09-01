@@ -303,14 +303,14 @@ def main(unused_argv):
    
     # Validation feed
     val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
-    val_acc = sess.run(cross_entropy, feed_dict=val_feed)
+    val_acc = sess.run(accuracy, feed_dict=val_feed)
     print("After %d training step(s), validation accuracy = %g" %
           (FLAGS.train_steps, val_acc))
 
 
     # Test feed
     test_feed = {x: mnist.test.images, y_: mnist.test.labels}
-    test_acc = sess.run(cross_entropy, feed_dict=test_feed)
+    test_acc = sess.run(accuracy, feed_dict=test_feed)
     print("After %d training step(s), test accuracy = %g" %
           (FLAGS.train_steps, test_acc))
 
