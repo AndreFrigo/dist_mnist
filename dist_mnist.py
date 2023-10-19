@@ -64,7 +64,7 @@ flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
 flags.DEFINE_integer("train_steps", 2000,
                      "Number of (global) training steps to perform")
-flags.DEFINE_integer("batch_size", 60000, "Training batch size")
+flags.DEFINE_integer("batch_size", 5000, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
 flags.DEFINE_boolean(
     "sync_replicas", False,
@@ -293,6 +293,7 @@ def main(unused_argv):
       if step >= FLAGS.train_steps:
         break
 
+    print("Steps: %d, Batch size: %d" % (FLAGS.train_steps, FLAGS.batch_size))
     time_end = time.time()
     print("Training ends @ %f" % time_end)
     training_time = time_end - time_begin
@@ -304,15 +305,15 @@ def main(unused_argv):
     # Validation feed
     val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
     val_acc = sess.run(accuracy, feed_dict=val_feed)
-    print("After %d training step(s), validation accuracy = %g" %
-          (FLAGS.train_steps, val_acc*100))
+    print("Validation accuracy = %g" %
+          (val_acc*100))
 
 
     # Test feed
     test_feed = {x: mnist.test.images, y_: mnist.test.labels}
     test_acc = sess.run(accuracy, feed_dict=test_feed)
-    print("After %d training step(s), test accuracy = %g" %
-          (FLAGS.train_steps, test_acc*100))
+    print("Test accuracy = %g" %
+          (test_acc*100))
 
 
 
