@@ -225,6 +225,8 @@ def main(unused_argv):
     print("Training begins @ %f" % time_begin)
 
     local_step = 0
+    #control to print data one time every 1000 steps
+    hasPrinted = False
     while True:
       # Training feed
       batch_xs, batch_ys = mnist.train.next_batch(FLAGS.batch_size)
@@ -233,8 +235,11 @@ def main(unused_argv):
       _, step = sess.run([train_step, global_step], feed_dict=train_feed)
       local_step += 1
       now = time.time()
-      if (step % 100 == 0):
-        print("time: %f, step: %d" % (now, step))
+      if (step % 1000 <= 100 and not hasPrinted and step >= 1000):
+        print("time: %f, step: %d" % (now, step-(step%1000))
+        hasPrinted = True
+      else:
+        hasPrinted = False
 
       if step >= FLAGS.train_steps:
         break
