@@ -233,9 +233,8 @@ def main(unused_argv):
       _, step = sess.run([train_step, global_step], feed_dict=train_feed)
       local_step += 1
       now = time.time()
-      #if (step % 100 <= 5):
-      #  print("%f: Worker %d: training step %d done (global step: %d), time: %f" %
-      #        (now, FLAGS.task_index, local_step, step, now - time_begin))
+      if (step % 100 == 0):
+        print("time: %f, step: %d" % (now, step))
 
       if step >= FLAGS.train_steps:
         break
