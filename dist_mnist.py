@@ -238,7 +238,7 @@ def main(unused_argv):
       if (step % 1000 <= 100 and not hasPrinted and step >= 1000):
         print("time: %f, step: %d" % (now, step-(step%1000)))
         hasPrinted = True
-      else:
+      if (step % 1000 > 100):
         hasPrinted = False
 
       if step >= FLAGS.train_steps:
