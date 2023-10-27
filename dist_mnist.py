@@ -64,7 +64,7 @@ flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
 flags.DEFINE_integer("train_steps", 20000,
                      "Number of (global) training steps to perform")
-flags.DEFINE_integer("batch_size", 100, "Training batch size")
+flags.DEFINE_integer("batch_size", 1000, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
 flags.DEFINE_boolean(
     "existing_servers", False, "Whether servers already exists. If True, "
