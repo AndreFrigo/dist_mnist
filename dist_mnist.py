@@ -44,6 +44,13 @@ import time
 
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
+
+#number of CPU nodes (same as the number of k8s computing nodes)
+nodes = 2
+cpustring = "localhost:2223"
+for i in range(1,nodes):
+  cpustring += ",localhost:"+str(2223+i)
+
 flags = tf.app.flags
 flags.DEFINE_string("data_dir", "/tmp/mnist-data",
                     "Directory for storing mnist data")
@@ -66,7 +73,7 @@ flags.DEFINE_boolean(
     "server.")
 flags.DEFINE_string("ps_hosts", "localhost:2222",
                     "Comma-separated list of hostname:port pairs")
-flags.DEFINE_string("worker_hosts", "localhost:2223,localhost:2224,localhost:2225",
+flags.DEFINE_string("worker_hosts", cpustring,
                     "Comma-separated list of hostname:port pairs")
 flags.DEFINE_string("job_name", None, "job name: worker or ps")
 
