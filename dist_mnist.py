@@ -236,7 +236,7 @@ def main(unused_argv):
       local_step += 1
       now = time.time()
       if (step % 1000 <= 100 and not hasPrinted and step >= 1000):
-        print("time: %f, step: %d" % (now, step-(step%1000))
+        print("time: %f, step: %d" % (now, step-(step%1000)))
         hasPrinted = True
       else:
         hasPrinted = False
