@@ -66,7 +66,7 @@ flags.DEFINE_boolean(
     "server.")
 flags.DEFINE_string("ps_hosts", "localhost:2222",
                     "Comma-separated list of hostname:port pairs")
-flags.DEFINE_string("worker_hosts", "localhost:2223,localhost:2224",
+flags.DEFINE_string("worker_hosts", "localhost:2223,localhost:2224,localhost:2225",
                     "Comma-separated list of hostname:port pairs")
 flags.DEFINE_string("job_name", None, "job name: worker or ps")
 
