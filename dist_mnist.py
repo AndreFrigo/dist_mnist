@@ -230,7 +230,7 @@ def main(unused_argv):
     # Perform training
     time_begin = time.time()
     print("Training begins @ %f" % time_begin)
-
+    PRINT("Nodes="+str(nodes))
     local_step = 0
     #control to print data one time every 1000 steps
     hasPrinted = False
