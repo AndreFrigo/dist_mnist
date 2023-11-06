@@ -264,14 +264,14 @@ def main(unused_argv):
     val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
     val_acc = sess.run(accuracy, feed_dict=val_feed)
     print("Validation accuracy = %g" %
-          (val_acc*100))
+          (float(val_acc*100)))
 
 
     # Test feed
     test_feed = {x: mnist.test.images, y_: mnist.test.labels}
     test_acc = sess.run(accuracy, feed_dict=test_feed)
     print("Test accuracy = %g" %
-          (test_acc*100))
+          (float(test_acc*100)))
 
 
 
