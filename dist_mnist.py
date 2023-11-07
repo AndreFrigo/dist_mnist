@@ -242,10 +242,10 @@ def main(unused_argv):
       _, step = sess.run([train_step, global_step], feed_dict=train_feed)
       local_step += 1
       now = time.time()
-      if (step % 1000 <= 100 and not hasPrinted and step >= 1000):
+      if (step % 1000 <= 200 and not hasPrinted and step >= 1000):
         print("time: %f, step: %d" % (now, step-(step%1000)))
         hasPrinted = True
-      if (step % 1000 > 100):
+      if (step % 1000 > 200):
         hasPrinted = False
 
       if step >= FLAGS.train_steps:
