@@ -46,7 +46,7 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 #number of CPU nodes (same as the number of k8s computing nodes)
-nodes = 2
+nodes = 5
 cpustring = "localhost:2223"
 for i in range(1,nodes):
   cpustring += ",localhost:"+str(2223+i)
