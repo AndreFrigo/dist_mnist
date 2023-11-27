@@ -114,6 +114,8 @@ def main(unused_argv):
   print("task index = %d" % FLAGS.task_index)
 
   cluster_config = tf_config.get('cluster', {})
+  print("CLUSTER CONFIG")
+  print(cluster_config)
   ps_hosts = cluster_config.get('ps')
   worker_hosts = cluster_config.get('worker')
 
@@ -126,7 +128,10 @@ def main(unused_argv):
   # Construct the cluster and start the server
   ps_spec = FLAGS.ps_hosts.split(",")
   worker_spec = FLAGS.worker_hosts.split(",")
-
+  print("PS_SPEC")
+  print(ps_spec)
+  print("WORKER_SPEC")
+  print(worker_spec)
   # Get the number of workers.
   num_workers = len(worker_spec)
 
