@@ -46,7 +46,7 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 #number of CPU nodes (same as the number of k8s computing nodes)
-nodes = 3
+nodes = 9
 cpustring = "localhost:2223"
 for i in range(1,nodes):
   cpustring += ",localhost:"+str(2223+i)
@@ -62,7 +62,7 @@ flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
                      "If you don't use GPU, please set it to '0'")
 flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 200,
+flags.DEFINE_integer("train_steps", 20000,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
@@ -97,8 +97,6 @@ def main(unused_argv):
   # environment variable is present, load cluster_spec from TF_CONFIG.
   tf_config = json.loads(os.environ.get('TF_CONFIG') or '{}')
   task_config = tf_config.get('task', {})
-  print("TASK CONFIG _________________")
-  print(task_config)
   task_type = task_config.get('type')
   task_index = task_config.get('index')
 
@@ -136,12 +134,11 @@ def main(unused_argv):
 
   if not FLAGS.existing_servers:
     # Not using existing servers. Create an in-process server.
-    server = tf.distribute.Server(
+    server = tf.train.Server(
         cluster, job_name=FLAGS.job_name, task_index=FLAGS.task_index)
     if FLAGS.job_name == "ps":
       server.join()
-  cluster_resolver = tf.distribute.cluster_resolver.SimpleClusterResolver(cluster_spec)
-  strategy = tf.distribute.ParameterServerStrategy(cluster_resolver)
+
   is_chief = (FLAGS.task_index == 0)
   if FLAGS.num_gpus > 0:
     # Avoid gpu allocation conflict: now allocate task_num -> #gpu
@@ -156,7 +153,6 @@ def main(unused_argv):
   # parameter servers (ps). The non-Variable ops will be placed on the workers.
   # The ps use CPU and workers use corresponding GPU
   print("WORKING DEVICE: "+worker_device)
-  
   with tf.device(
       tf.train.replica_device_setter(
           worker_device=worker_device,
@@ -232,37 +228,35 @@ def main(unused_argv):
        
     
     # Perform training
-    with strategy.scope():
-      time_begin = time.time()
-      print("Training begins @ %f" % time_begin)
-      print("Nodes="+str(nodes))
-      local_step = 0
-      #control to print data one time every 1000 steps
-      hasPrinted = False
-      while True:
-        # Training feed
-        batch_xs, batch_ys = mnist.train.next_batch(FLAGS.batch_size)
-        train_feed = {x: batch_xs, y_: batch_ys}
-  
-        _, step = sess.run([train_step, global_step], feed_dict=train_feed)
-        local_step += 1
-        print("Node "+str(task_index)+": done step: "+str(step))
-        now = time.time()
-        if (step % 1000 <= 200 and not hasPrinted and step >= 1000):
-          print("time: %f, step: %d" % (now, step-(step%1000)))
-          hasPrinted = True
-        if (step % 1000 > 200):
-          hasPrinted = False
-        if step >= FLAGS.train_steps:
-          break
-  
-      time_end = time.time()
-      print("Training ends @ %f" % time_end)
-      print("Steps: %d, Batch size: %d" % (FLAGS.train_steps, FLAGS.batch_size))
-      training_time = time_end - time_begin
-      starting_time = time_begin - time_start
-      print("Starting time (time lost before starting training): %f s" % starting_time)
-      print("Training elapsed time: %f s" % training_time)
+    time_begin = time.time()
+    print("Training begins @ %f" % time_begin)
+    print("Nodes="+str(nodes))
+    local_step = 0
+    #control to print data one time every 1000 steps
+    hasPrinted = False
+    while True:
+      # Training feed
+      batch_xs, batch_ys = mnist.train.next_batch(FLAGS.batch_size)
+      train_feed = {x: batch_xs, y_: batch_ys}
+
+      _, step = sess.run([train_step, global_step], feed_dict=train_feed)
+      local_step += 1
+      now = time.time()
+      if (step % 1000 <= 200 and not hasPrinted and step >= 1000):
+        print("time: %f, step: %d" % (now, step-(step%1000)))
+        hasPrinted = True
+      if (step % 1000 > 200):
+        hasPrinted = False
+      if step >= FLAGS.train_steps:
+        break
+
+    time_end = time.time()
+    print("Training ends @ %f" % time_end)
+    print("Steps: %d, Batch size: %d" % (FLAGS.train_steps, FLAGS.batch_size))
+    training_time = time_end - time_begin
+    starting_time = time_begin - time_start
+    print("Starting time (time lost before starting training): %f s" % starting_time)
+    print("Training elapsed time: %f s" % training_time)
     
     if is_chief:
       # Validation feed
