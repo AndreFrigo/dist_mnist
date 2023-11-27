@@ -241,7 +241,7 @@ def main(unused_argv):
 
       _, step = sess.run([train_step, global_step], feed_dict=train_feed)
       local_step += 1
-      print("Node "+str(task_index)+": done global_step: "+str(global_step.eval())+", step: "+str(step))
+      print("Node "+str(task_index)+": done step: "+str(step))
       now = time.time()
       if (step % 1000 <= 200 and not hasPrinted and step >= 1000):
         print("time: %f, step: %d" % (now, step-(step%1000)))
