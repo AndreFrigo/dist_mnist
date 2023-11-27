@@ -46,7 +46,7 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 #number of CPU nodes (same as the number of k8s computing nodes)
-nodes = 9
+nodes = 3
 cpustring = "localhost:2223"
 for i in range(1,nodes):
   cpustring += ",localhost:"+str(2223+i)
@@ -241,7 +241,7 @@ def main(unused_argv):
 
       _, step = sess.run([train_step, global_step], feed_dict=train_feed)
       local_step += 1
-      print("Node "+str(task_index)+": done global_step: "+str(global_step)+", step: "+str(step))
+      print("Node "+str(task_index)+": done global_step: "+str(global_step.eval())+", step: "+str(step))
       now = time.time()
       if (step % 1000 <= 200 and not hasPrinted and step >= 1000):
         print("time: %f, step: %d" % (now, step-(step%1000)))
