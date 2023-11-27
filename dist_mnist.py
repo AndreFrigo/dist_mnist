@@ -46,7 +46,7 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 #number of CPU nodes (same as the number of k8s computing nodes)
-nodes = 9
+nodes = 3
 cpustring = "localhost:2223"
 for i in range(1,nodes):
   cpustring += ",localhost:"+str(2223+i)
@@ -62,7 +62,7 @@ flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
                      "If you don't use GPU, please set it to '0'")
 flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 20000,
+flags.DEFINE_integer("train_steps", 300,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
@@ -240,6 +240,7 @@ def main(unused_argv):
       train_feed = {x: batch_xs, y_: batch_ys}
 
       _, step = sess.run([train_step, global_step], feed_dict=train_feed)
+      print("Done step "+str(step))
       local_step += 1
       now = time.time()
       if (step % 1000 <= 200 and not hasPrinted and step >= 1000):
