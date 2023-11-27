@@ -62,7 +62,7 @@ flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
                      "If you don't use GPU, please set it to '0'")
 flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 20000,
+flags.DEFINE_integer("train_steps", 200,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
@@ -97,6 +97,8 @@ def main(unused_argv):
   # environment variable is present, load cluster_spec from TF_CONFIG.
   tf_config = json.loads(os.environ.get('TF_CONFIG') or '{}')
   task_config = tf_config.get('task', {})
+  print("TASK CONFIG _________________")
+  print(task_config)
   task_type = task_config.get('type')
   task_index = task_config.get('index')
 
