@@ -136,11 +136,12 @@ def main(unused_argv):
 
   if not FLAGS.existing_servers:
     # Not using existing servers. Create an in-process server.
-    server = tf.train.Server(
+    server = tf.distribute.Server(
         cluster, job_name=FLAGS.job_name, task_index=FLAGS.task_index)
     if FLAGS.job_name == "ps":
       server.join()
-
+  cluster_resolver = tf.distribute.cluster_resolver.SimpleClusterResolver(cluster_spec)
+  strategy = tf.distribute.ParameterServerStrategy(cluster_resolver)
   is_chief = (FLAGS.task_index == 0)
   if FLAGS.num_gpus > 0:
     # Avoid gpu allocation conflict: now allocate task_num -> #gpu
@@ -155,6 +156,7 @@ def main(unused_argv):
   # parameter servers (ps). The non-Variable ops will be placed on the workers.
   # The ps use CPU and workers use corresponding GPU
   print("WORKING DEVICE: "+worker_device)
+  
   with tf.device(
       tf.train.replica_device_setter(
           worker_device=worker_device,
@@ -230,36 +232,37 @@ def main(unused_argv):
        
     
     # Perform training
-    time_begin = time.time()
-    print("Training begins @ %f" % time_begin)
-    print("Nodes="+str(nodes))
-    local_step = 0
-    #control to print data one time every 1000 steps
-    hasPrinted = False
-    while True:
-      # Training feed
-      batch_xs, batch_ys = mnist.train.next_batch(FLAGS.batch_size)
-      train_feed = {x: batch_xs, y_: batch_ys}
-
-      _, step = sess.run([train_step, global_step], feed_dict=train_feed)
-      local_step += 1
-      print("Node "+str(task_index)+": done step: "+str(step))
-      now = time.time()
-      if (step % 1000 <= 200 and not hasPrinted and step >= 1000):
-        print("time: %f, step: %d" % (now, step-(step%1000)))
-        hasPrinted = True
-      if (step % 1000 > 200):
-        hasPrinted = False
-      if step >= FLAGS.train_steps:
-        break
-
-    time_end = time.time()
-    print("Training ends @ %f" % time_end)
-    print("Steps: %d, Batch size: %d" % (FLAGS.train_steps, FLAGS.batch_size))
-    training_time = time_end - time_begin
-    starting_time = time_begin - time_start
-    print("Starting time (time lost before starting training): %f s" % starting_time)
-    print("Training elapsed time: %f s" % training_time)
+    with strategy.scope():
+      time_begin = time.time()
+      print("Training begins @ %f" % time_begin)
+      print("Nodes="+str(nodes))
+      local_step = 0
+      #control to print data one time every 1000 steps
+      hasPrinted = False
+      while True:
+        # Training feed
+        batch_xs, batch_ys = mnist.train.next_batch(FLAGS.batch_size)
+        train_feed = {x: batch_xs, y_: batch_ys}
+  
+        _, step = sess.run([train_step, global_step], feed_dict=train_feed)
+        local_step += 1
+        print("Node "+str(task_index)+": done step: "+str(step))
+        now = time.time()
+        if (step % 1000 <= 200 and not hasPrinted and step >= 1000):
+          print("time: %f, step: %d" % (now, step-(step%1000)))
+          hasPrinted = True
+        if (step % 1000 > 200):
+          hasPrinted = False
+        if step >= FLAGS.train_steps:
+          break
+  
+      time_end = time.time()
+      print("Training ends @ %f" % time_end)
+      print("Steps: %d, Batch size: %d" % (FLAGS.train_steps, FLAGS.batch_size))
+      training_time = time_end - time_begin
+      starting_time = time_begin - time_start
+      print("Starting time (time lost before starting training): %f s" % starting_time)
+      print("Training elapsed time: %f s" % training_time)
     
     if is_chief:
       # Validation feed
