@@ -257,7 +257,11 @@ def main(unused_argv):
       sess = sv.prepare_or_wait_for_session(server.target, config=sess_config)
 
     print("Worker %d: Session initialization complete." % FLAGS.task_index)
-       
+    
+    if FLAGS.sync_replicas and is_chief:
+      # Chief worker will start the chief queue runner and call the init op.
+      sess.run(sync_init_op)
+      sv.start_queue_runners(sess, [chief_queue_runner])   
     
     # Perform training
     time_begin = time.time()
