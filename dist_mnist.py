@@ -63,18 +63,7 @@ IMAGE_PIXELS = 28
 
 
 
-# Define some parameters
-learning_rate = 0.001
-training_epochs = 100  # how many training cycles we'll go through
-batch_size = 100  # size of the batches of the training data
 
-n_classes = 10  # number of classes for the output (-> digits from 0 to 9)
-n_samples = mnist.train.num_examples  # number of samples (55 000)
-n_input = 784  # shape of one input (array of 784 floats)
-
-n_hidden_1 = 256  # number of neurons for the 1st hidden layer. 256 is common because of the 8-bit color storing method
-n_hidden_2 = 256  # number of neurons for the 2nd hidden layer
-n_hidden_3 = 256  # number of neurons for the 3rd hidden layer
 
 # We'll use 3 hidden layers. The number of hidden layers is a trade off between speed, cost and accuracy.
 # After the output layer, to evaluate the errors between the predictions and the labels, we'll use a loss (cost)
@@ -126,6 +115,19 @@ def main(unused_argv):
   FLAGS.task_index = task_index
 
   mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
+
+  # Define some parameters
+  learning_rate = 0.001
+  training_epochs = 100  # how many training cycles we'll go through
+  batch_size = 100  # size of the batches of the training data
+  
+  n_classes = 10  # number of classes for the output (-> digits from 0 to 9)
+  n_samples = mnist.train.num_examples  # number of samples (55 000)
+  n_input = 784  # shape of one input (array of 784 floats)
+  
+  n_hidden_1 = 256  # number of neurons for the 1st hidden layer. 256 is common because of the 8-bit color storing method
+  n_hidden_2 = 256  # number of neurons for the 2nd hidden layer
+  n_hidden_3 = 256  # number of neurons for the 3rd hidden layer
 
   if FLAGS.job_name is None or FLAGS.job_name == "":
     raise ValueError("Must specify an explicit `job_name`")
