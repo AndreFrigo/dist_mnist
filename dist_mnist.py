@@ -1,36 +1,3 @@
-# Copyright 2016 The TensorFlow Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-"""Distributed MNIST training and validation, with model replicas.
-
-A simple softmax model with one hidden layer is defined. The parameters
-(weights and biases) are located on one parameter server (ps), while the ops
-are executed on two worker nodes by default. The TF sessions also run on the
-worker node.
-Multiple invocations of this script can be done in parallel, with different
-values for --task_index. There should be exactly one invocation with
---task_index, which will create a master session that carries out variable
-initialization. The other, non-master, sessions will wait for the master
-session to finish the initialization before proceeding to the training stage.
-
-The coordination between the multiple worker invocations occurs due to
-the definition of the parameters on the same ps devices. The parameter updates
-from one worker is visible to all other workers. As such, the workers can
-perform forward computation and gradient calculation in parallel, which
-should lead to increased training speed for the simple model.
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -46,7 +13,7 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 #number of CPU nodes (same as the number of k8s computing nodes)
-nodes = 9
+nodes = 2
 cpustring = "localhost:2223"
 for i in range(1,nodes):
   cpustring += ",localhost:"+str(2223+i)
@@ -62,7 +29,7 @@ flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
                      "If you don't use GPU, please set it to '0'")
 flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 20000,
+flags.DEFINE_integer("train_steps", 300,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
@@ -92,6 +59,56 @@ IMAGE_PIXELS = 28
 #   os.environ['TF_CONFIG'] = json.dumps(
 #       {'cluster': cluster,
 #        'task': {'type': 'worker', 'index': 1}})
+
+
+
+
+# Define some parameters
+learning_rate = 0.001
+training_epochs = 100  # how many training cycles we'll go through
+batch_size = 100  # size of the batches of the training data
+
+n_classes = 10  # number of classes for the output (-> digits from 0 to 9)
+n_samples = mnist.train.num_examples  # number of samples (55 000)
+n_input = 784  # shape of one input (array of 784 floats)
+
+n_hidden_1 = 256  # number of neurons for the 1st hidden layer. 256 is common because of the 8-bit color storing method
+n_hidden_2 = 256  # number of neurons for the 2nd hidden layer
+n_hidden_3 = 256  # number of neurons for the 3rd hidden layer
+
+# We'll use 3 hidden layers. The number of hidden layers is a trade off between speed, cost and accuracy.
+# After the output layer, to evaluate the errors between the predictions and the labels, we'll use a loss (cost)
+# function.
+# Here, we'll just check how many classes we have correctly predicted. We apply an optimizer (Adam) to reduce
+# the cost/error at each epoch.
+def multilayer_perceptron(x, weights, biases):
+    """
+    3-layer perceptron for the MNIST dataset.
+
+    :param x: Placeholder for the data input
+    :param weights: dict of weights
+    :param biases: dict of bias values
+    :return: the output layer
+    """
+    # first hidden layer with RELU activation function
+    # X * W + B
+    layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
+    # RELU(X * W + B) -> f(x) = max(0, x)
+    layer_1 = tf.nn.relu(layer_1)
+
+    # second hidden layer with RELU activation function
+    layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
+    layer_2 = tf.nn.relu(layer_2)
+
+    # third hidden layer with RELU activation function
+    layer_3 = tf.add(tf.matmul(layer_2, weights['h3']), biases['b3'])
+    layer_3 = tf.nn.relu(layer_3)
+
+    # output layer
+    out_layer = tf.matmul(layer_3, weights['out']) + biases['out']
+
+    return out_layer
+
 
 def main(unused_argv):
 
@@ -164,44 +181,75 @@ def main(unused_argv):
           cluster=cluster)):
     global_step = tf.Variable(0, name="global_step", trainable=False)
 
-    # Variables of the hidden layer
-    hid_w = tf.Variable(
-        tf.truncated_normal(
-            [IMAGE_PIXELS * IMAGE_PIXELS, FLAGS.hidden_units],
-            stddev=1.0 / IMAGE_PIXELS),
-        name="hid_w")
-    hid_b = tf.Variable(tf.zeros([FLAGS.hidden_units]), name="hid_b")
+    # # Variables of the hidden layer
+    # hid_w = tf.Variable(
+    #     tf.truncated_normal(
+    #         [IMAGE_PIXELS * IMAGE_PIXELS, FLAGS.hidden_units],
+    #         stddev=1.0 / IMAGE_PIXELS),
+    #     name="hid_w")
+    # hid_b = tf.Variable(tf.zeros([FLAGS.hidden_units]), name="hid_b")
 
-    # Variables of the softmax layer
-    sm_w = tf.Variable(
-        tf.truncated_normal(
-            [FLAGS.hidden_units, 10],
-            stddev=1.0 / math.sqrt(FLAGS.hidden_units)),
-        name="sm_w")
-    sm_b = tf.Variable(tf.zeros([10]), name="sm_b")
+    # # Variables of the softmax layer
+    # sm_w = tf.Variable(
+    #     tf.truncated_normal(
+    #         [FLAGS.hidden_units, 10],
+    #         stddev=1.0 / math.sqrt(FLAGS.hidden_units)),
+    #     name="sm_w")
+    # sm_b = tf.Variable(tf.zeros([10]), name="sm_b")
 
-    # Ops: located on the worker specified with FLAGS.task_index
-    x = tf.placeholder(tf.float32, [None, IMAGE_PIXELS * IMAGE_PIXELS])
-    y_ = tf.placeholder(tf.float32, [None, 10])
+    # # Ops: located on the worker specified with FLAGS.task_index
+    # x = tf.placeholder(tf.float32, [None, IMAGE_PIXELS * IMAGE_PIXELS])
+    # y_ = tf.placeholder(tf.float32, [None, 10])
 
-    hid_lin = tf.nn.xw_plus_b(x, hid_w, hid_b)
-    hid = tf.nn.relu(hid_lin)
+    # define the weights for the nodes of each layer : 784 weights for each node in the first layer,
+    # then 256 for the 2 next layers, then 10 for the output layer
+    weights = {
+        'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),  # matrix of normally distributed random values for H1.
+        'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
+        'h3': tf.Variable(tf.random_normal([n_hidden_2, n_hidden_3])),
+        'out': tf.Variable(tf.random_normal([n_hidden_3, n_classes]))
+    }
 
-    y = tf.nn.softmax(tf.nn.xw_plus_b(hid, sm_w, sm_b))
-    cross_entropy = -tf.reduce_sum(y_ * tf.log(tf.clip_by_value(y, 1e-10, 1.0)))
-    correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    opt = tf.train.AdamOptimizer(FLAGS.learning_rate)
+    # define the biases for each nodes in each layer : 1 bias per node
+    biases = {
+        'b1': tf.Variable(tf.random_normal([n_hidden_1])),
+        'b2': tf.Variable(tf.random_normal([n_hidden_2])),
+        'b3': tf.Variable(tf.random_normal([n_hidden_3])),
+        'out': tf.Variable(tf.random_normal([n_classes]))
+    }
+
+    # placeholders for the input data & the labels
+    x = tf.placeholder('float', [None, n_input])
+    y = tf.placeholder('float', [None, n_classes])
+
+
+    pred = multilayer_perceptron(x, weights, biases)
+
+    # Define costs and optimization functions. We'll use tf built-in functions
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
+
+
+
+    # hid_lin = tf.nn.xw_plus_b(x, hid_w, hid_b)
+    # hid = tf.nn.relu(hid_lin)
+
+    # y = tf.nn.softmax(tf.nn.xw_plus_b(hid, sm_w, sm_b))
+    # cross_entropy = -tf.reduce_sum(y_ * tf.log(tf.clip_by_value(y, 1e-10, 1.0)))
+    # correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
+    # accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    # opt = tf.train.AdamOptimizer(FLAGS.learning_rate)
 
     if FLAGS.sync_replicas:
-      replicas_to_aggregate = 1
+      replicas_to_aggregate = num_workers
       opt = tf.train.SyncReplicasOptimizer(
           opt,
           replicas_to_aggregate=replicas_to_aggregate,
           total_num_replicas=num_workers,
           name="mnist_sync_replicas")
 
-    train_step = opt.minimize(cross_entropy, global_step=global_step)
+    # train_step = opt.minimize(cross_entropy, global_step=global_step)
 
     if FLAGS.sync_replicas:
       local_init_op = opt.local_step_init_op
@@ -213,6 +261,9 @@ def main(unused_argv):
       # Initial token and chief queue runners required by the sync_replicas mode
       chief_queue_runner = opt.get_chief_queue_runner()
       sync_init_op = opt.get_init_tokens_op()
+
+
+
 
     init_op = tf.global_variables_initializer()
     train_dir = tempfile.mkdtemp()
@@ -257,59 +308,40 @@ def main(unused_argv):
       sess = sv.prepare_or_wait_for_session(server.target, config=sess_config)
 
     print("Worker %d: Session initialization complete." % FLAGS.task_index)
+       
     
-    if FLAGS.sync_replicas and is_chief:
-      # Chief worker will start the chief queue runner and call the init op.
-      sess.run(sync_init_op)
-      sv.start_queue_runners(sess, [chief_queue_runner])   
-    
-    # Perform training
-    time_begin = time.time()
-    print("Training begins @ %f" % time_begin)
-    print("Nodes="+str(nodes))
-    local_step = 0
-    #control to print data one time every 1000 steps
-    hasPrinted = False
-    while True:
-      # Training feed
-      batch_xs, batch_ys = mnist.train.next_batch(FLAGS.batch_size)
-      train_feed = {x: batch_xs, y_: batch_ys}
+    # 'training_epochs' training cycles
+    for epoch in range(training_epochs):
 
-      _, step = sess.run([train_step, global_step], feed_dict=train_feed)
-      print("Done step "+str(step))
-      local_step += 1
-      now = time.time()
-      if (step % 1000 <= 200 and not hasPrinted and step >= 1000):
-        print("time: %f, step: %d" % (now, step-(step%1000)))
-        hasPrinted = True
-      if (step % 1000 > 200):
-        hasPrinted = False
-      if step >= FLAGS.train_steps:
-        break
+        # Cost
+        avg_cost = 0.0
 
-    time_end = time.time()
-    print("Training ends @ %f" % time_end)
-    print("Steps: %d, Batch size: %d" % (FLAGS.train_steps, FLAGS.batch_size))
-    training_time = time_end - time_begin
-    starting_time = time_begin - time_start
-    print("Starting time (time lost before starting training): %f s" % starting_time)
-    print("Training elapsed time: %f s" % training_time)
-    
+        total_batch = int(n_samples/batch_size)
+
+        for i in range(total_batch):
+
+            batch_x, batch_y = mnist.train.next_batch(batch_size)
+
+            _, c = sess.run([optimizer, cost], feed_dict={x: batch_x, y: batch_y})
+
+            avg_cost += c/total_batch
+
+        print("Epoch : {} -> cost : {:.4f}".format(epoch, avg_cost))
+
+    print("Model has completed {} Epochs of training".format(training_epochs))
+
     if is_chief:
-      # Validation feed
-      val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
-      val_acc = sess.run(accuracy, feed_dict=val_feed)
-      print("Validation accuracy = %g" %
-            (val_acc*100))
-  
-  
-      # Test feed
-      test_feed = {x: mnist.test.images, y_: mnist.test.labels}
-      test_acc = sess.run(accuracy, feed_dict=test_feed)
-      print("Test accuracy = %g" %
-            (test_acc*100))
+        # Model evaluations
+        correct_predictions = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))  # Tensor of bool
+        correct_predictions = tf.cast(correct_predictions, 'float')  # Cast it to a tensor of floats sor that we can get the
+        # mean
+
+        accuracy = tf.reduce_mean(correct_predictions)
+
+        # We now evaluate this accuracy on the test dataset
+        print('\nTest Dataset accuracy: {:.4f}'.format(accuracy.eval({x: mnist.test.images, y: mnist.test.labels})))
 
 
-
+    
 if __name__ == "__main__":
   tf.app.run()
