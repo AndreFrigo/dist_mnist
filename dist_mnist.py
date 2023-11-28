@@ -62,7 +62,7 @@ flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
                      "If you don't use GPU, please set it to '0'")
 flags.DEFINE_integer("hidden_units", 100,
                      "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 20000,
+flags.DEFINE_integer("train_steps", 100,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
@@ -194,7 +194,7 @@ def main(unused_argv):
     opt = tf.train.AdamOptimizer(FLAGS.learning_rate)
 
     if FLAGS.sync_replicas:
-      replicas_to_aggregate = num_workers
+      replicas_to_aggregate = int(num_workers*0.1)
       opt = tf.train.SyncReplicasOptimizer(
           opt,
           replicas_to_aggregate=replicas_to_aggregate,
@@ -276,7 +276,7 @@ def main(unused_argv):
       train_feed = {x: batch_xs, y_: batch_ys}
 
       _, step = sess.run([train_step, global_step], feed_dict=train_feed)
-      # print("Done step "+str(step))
+      print("Done step "+str(step))
       local_step += 1
       now = time.time()
       if (step % 1000 <= 200 and not hasPrinted and step >= 1000):
