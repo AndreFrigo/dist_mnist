@@ -68,7 +68,7 @@ flags.DEFINE_integer("train_steps", 100,
 flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
 flags.DEFINE_boolean(
-    "sync_replicas", False,
+    "sync_replicas", True,
     "Use the sync_replicas (synchronized replicas) mode, "
     "wherein the parameter updates from workers are aggregated "
     "before applied to avoid stale gradients")
@@ -281,8 +281,7 @@ def main(unused_argv):
       local_step += 1
       print("Done step: "+str(step))
       now = time.time()
-      print("%f: Worker %d: training step %d done (global step: %d)" %
-            (now, FLAGS.task_index, local_step, step))
+      #print("%f: Worker %d: training step %d done (global step: %d)" %(now, FLAGS.task_index, local_step, step))
 
       if step >= FLAGS.train_steps:
         break
