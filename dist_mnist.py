@@ -6,6 +6,9 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 import tempfile
 
+NUM_WORKERS = 3
+NUM_PS = 1
+
 def preprocess(x, y):
   # Reshaping the data
   x = tf.reshape(x, shape=[-1, 784])
@@ -194,8 +197,7 @@ def create_in_process_cluster(num_workers, num_ps):
 # coordinator. This is a workaround and won't be necessary in the future.
 os.environ["GRPC_FAIL_FAST"] = "use_caller"
 
-NUM_WORKERS = 3
-NUM_PS = 1
+
 cluster_resolver = create_in_process_cluster(NUM_WORKERS, NUM_PS)
 
 
@@ -226,7 +228,7 @@ train_data, val_data, test_data = tfds.load(
 hidden_layer_1_size = 700
 hidden_layer_2_size = 500
 output_size = 10
-
+init_time = time.time()
 
 with strategy.scope():
   # model = tf.keras.models.Sequential([tf.keras.layers.Dense(10)])
@@ -257,3 +259,4 @@ with strategy.scope():
   train_losses, train_accs, val_losses, val_accs = train_model(
     mlp_model, train_data, val_data, loss=cross_entropy_loss, 
     acc=accuracy, optimizer=Adam(), epochs=10)
+print("Training duration: "+str(time.time()-init_time))
