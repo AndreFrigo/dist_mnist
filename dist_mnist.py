@@ -1,349 +1,259 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import json
-import math
+import multiprocessing
 import os
-import sys
-import tempfile
-import time
-
+import random
+import portpicker
 import tensorflow as tf
-from tensorflow.examples.tutorials.mnist import input_data
-
-#number of CPU nodes (same as the number of k8s computing nodes)
-nodes = 2
-cpustring = "localhost:2223"
-for i in range(1,nodes):
-  cpustring += ",localhost:"+str(2223+i)
-
-flags = tf.app.flags
-flags.DEFINE_string("data_dir", "/tmp/mnist-data",
-                    "Directory for storing mnist data")
-flags.DEFINE_integer("task_index", None,
-                     "Worker task index, should be >= 0. task_index=0 is "
-                     "the master worker task the performs the variable "
-                     "initialization ")
-flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
-                     "If you don't use GPU, please set it to '0'")
-flags.DEFINE_integer("hidden_units", 100,
-                     "Number of units in the hidden layer of the NN")
-flags.DEFINE_integer("train_steps", 300,
-                     "Number of (global) training steps to perform")
-flags.DEFINE_integer("batch_size", 100, "Training batch size")
-flags.DEFINE_float("learning_rate", 0.01, "Learning rate")
-flags.DEFINE_boolean(
-    "sync_replicas", False,
-    "Use the sync_replicas (synchronized replicas) mode, "
-    "wherein the parameter updates from workers are aggregated "
-    "before applied to avoid stale gradients")
-flags.DEFINE_boolean(
-    "existing_servers", False, "Whether servers already exists. If True, "
-    "will use the worker hosts via their GRPC URLs (one client process "
-    "per worker host). Otherwise, will create an in-process TensorFlow "
-    "server.")
-flags.DEFINE_string("ps_hosts", "localhost:2222",
-                    "Comma-separated list of hostname:port pairs")
-flags.DEFINE_string("worker_hosts", cpustring,
-                    "Comma-separated list of hostname:port pairs")
-flags.DEFINE_string("job_name", None, "job name: worker or ps")
-
-FLAGS = flags.FLAGS
-
-IMAGE_PIXELS = 28
-
-# Example:
-#   cluster = {'ps': ['host1:2222', 'host2:2222'],
-#              'worker': ['host3:2222', 'host4:2222', 'host5:2222']}
-#   os.environ['TF_CONFIG'] = json.dumps(
-#       {'cluster': cluster,
-#        'task': {'type': 'worker', 'index': 1}})
-
-
-
-
-
-
-# We'll use 3 hidden layers. The number of hidden layers is a trade off between speed, cost and accuracy.
-# After the output layer, to evaluate the errors between the predictions and the labels, we'll use a loss (cost)
-# function.
-# Here, we'll just check how many classes we have correctly predicted. We apply an optimizer (Adam) to reduce
-# the cost/error at each epoch.
-def multilayer_perceptron(x, weights, biases):
-    """
-    3-layer perceptron for the MNIST dataset.
-
-    :param x: Placeholder for the data input
-    :param weights: dict of weights
-    :param biases: dict of bias values
-    :return: the output layer
-    """
-    # first hidden layer with RELU activation function
-    # X * W + B
-    layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
-    # RELU(X * W + B) -> f(x) = max(0, x)
-    layer_1 = tf.nn.relu(layer_1)
-
-    # second hidden layer with RELU activation function
-    layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
-    layer_2 = tf.nn.relu(layer_2)
-
-    # third hidden layer with RELU activation function
-    layer_3 = tf.add(tf.matmul(layer_2, weights['h3']), biases['b3'])
-    layer_3 = tf.nn.relu(layer_3)
-
-    # output layer
-    out_layer = tf.matmul(layer_3, weights['out']) + biases['out']
-
-    return out_layer
-
-
-def main(unused_argv):
-
-  time_start = time.time()
-  # Parse environment variable TF_CONFIG to get job_name and task_index
-
-  # If not explicitly specified in the constructor and the TF_CONFIG
-  # environment variable is present, load cluster_spec from TF_CONFIG.
-  tf_config = json.loads(os.environ.get('TF_CONFIG') or '{}')
-  task_config = tf_config.get('task', {})
-  task_type = task_config.get('type')
-  task_index = task_config.get('index')
-
-  FLAGS.job_name = task_type
-  FLAGS.task_index = task_index
-
-  mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
-
-  # Define some parameters
-  learning_rate = 0.001
-  training_epochs = 100  # how many training cycles we'll go through
-  batch_size = 100  # size of the batches of the training data
-  
-  n_classes = 10  # number of classes for the output (-> digits from 0 to 9)
-  n_samples = mnist.train.num_examples  # number of samples (55 000)
-  n_input = 784  # shape of one input (array of 784 floats)
-  
-  n_hidden_1 = 256  # number of neurons for the 1st hidden layer. 256 is common because of the 8-bit color storing method
-  n_hidden_2 = 256  # number of neurons for the 2nd hidden layer
-  n_hidden_3 = 256  # number of neurons for the 3rd hidden layer
-
-  if FLAGS.job_name is None or FLAGS.job_name == "":
-    raise ValueError("Must specify an explicit `job_name`")
-  if FLAGS.task_index is None or FLAGS.task_index == "":
-    raise ValueError("Must specify an explicit `task_index`")
-
-  print("job name = %s" % FLAGS.job_name)
-  print("task index = %d" % FLAGS.task_index)
-
-  cluster_config = tf_config.get('cluster', {})
-  ps_hosts = cluster_config.get('ps')
-  worker_hosts = cluster_config.get('worker')
-
-  ps_hosts_str = ','.join(ps_hosts)
-  worker_hosts_str = ','.join(worker_hosts)
-
-  FLAGS.ps_hosts = ps_hosts_str
-  FLAGS.worker_hosts = worker_hosts_str
-
-  # Construct the cluster and start the server
-  ps_spec = FLAGS.ps_hosts.split(",")
-  worker_spec = FLAGS.worker_hosts.split(",")
-
-  # Get the number of workers.
-  num_workers = len(worker_spec)
-
-  cluster = tf.train.ClusterSpec({"ps": ps_spec, "worker": worker_spec})
-
-  if not FLAGS.existing_servers:
-    # Not using existing servers. Create an in-process server.
-    server = tf.train.Server(
-        cluster, job_name=FLAGS.job_name, task_index=FLAGS.task_index)
-    if FLAGS.job_name == "ps":
-      server.join()
-
-  is_chief = (FLAGS.task_index == 0)
-  if FLAGS.num_gpus > 0:
-    # Avoid gpu allocation conflict: now allocate task_num -> #gpu
-    # for each worker in the corresponding machine
-    gpu = (FLAGS.task_index % FLAGS.num_gpus)
-    worker_device = "/job:worker/task:%d/gpu:%d" % (FLAGS.task_index, gpu)
-  elif FLAGS.num_gpus == 0:
-    # Just allocate the CPU to worker server
-    cpu = 0
-    worker_device = "/job:worker/task:%d/cpu:%d" % (FLAGS.task_index, cpu)
-  # The device setter will automatically place Variables ops on separate
-  # parameter servers (ps). The non-Variable ops will be placed on the workers.
-  # The ps use CPU and workers use corresponding GPU
-  with tf.device(
-      tf.train.replica_device_setter(
-          worker_device=worker_device,
-          ps_device="/job:ps/cpu:0",
-          cluster=cluster)):
-    global_step = tf.Variable(0, name="global_step", trainable=False)
-
-    # # Variables of the hidden layer
-    # hid_w = tf.Variable(
-    #     tf.truncated_normal(
-    #         [IMAGE_PIXELS * IMAGE_PIXELS, FLAGS.hidden_units],
-    #         stddev=1.0 / IMAGE_PIXELS),
-    #     name="hid_w")
-    # hid_b = tf.Variable(tf.zeros([FLAGS.hidden_units]), name="hid_b")
-
-    # # Variables of the softmax layer
-    # sm_w = tf.Variable(
-    #     tf.truncated_normal(
-    #         [FLAGS.hidden_units, 10],
-    #         stddev=1.0 / math.sqrt(FLAGS.hidden_units)),
-    #     name="sm_w")
-    # sm_b = tf.Variable(tf.zeros([10]), name="sm_b")
-
-    # # Ops: located on the worker specified with FLAGS.task_index
-    # x = tf.placeholder(tf.float32, [None, IMAGE_PIXELS * IMAGE_PIXELS])
-    # y_ = tf.placeholder(tf.float32, [None, 10])
-
-    # define the weights for the nodes of each layer : 784 weights for each node in the first layer,
-    # then 256 for the 2 next layers, then 10 for the output layer
-    weights = {
-        'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),  # matrix of normally distributed random values for H1.
-        'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
-        'h3': tf.Variable(tf.random_normal([n_hidden_2, n_hidden_3])),
-        'out': tf.Variable(tf.random_normal([n_hidden_3, n_classes]))
-    }
-
-    # define the biases for each nodes in each layer : 1 bias per node
-    biases = {
-        'b1': tf.Variable(tf.random_normal([n_hidden_1])),
-        'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-        'b3': tf.Variable(tf.random_normal([n_hidden_3])),
-        'out': tf.Variable(tf.random_normal([n_classes]))
-    }
-
-    # placeholders for the input data & the labels
-    x = tf.placeholder('float', [None, n_input])
-    y = tf.placeholder('float', [None, n_classes])
-
-
-    pred = multilayer_perceptron(x, weights, biases)
-
-    # Define costs and optimization functions. We'll use tf built-in functions
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-
-
-
-
-    # hid_lin = tf.nn.xw_plus_b(x, hid_w, hid_b)
-    # hid = tf.nn.relu(hid_lin)
-
-    # y = tf.nn.softmax(tf.nn.xw_plus_b(hid, sm_w, sm_b))
-    # cross_entropy = -tf.reduce_sum(y_ * tf.log(tf.clip_by_value(y, 1e-10, 1.0)))
-    # correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
-    # accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    # opt = tf.train.AdamOptimizer(FLAGS.learning_rate)
-
-    if FLAGS.sync_replicas:
-      replicas_to_aggregate = num_workers
-      opt = tf.train.SyncReplicasOptimizer(
-          opt,
-          replicas_to_aggregate=replicas_to_aggregate,
-          total_num_replicas=num_workers,
-          name="mnist_sync_replicas")
-
-    # train_step = opt.minimize(cross_entropy, global_step=global_step)
-
-    if FLAGS.sync_replicas:
-      local_init_op = opt.local_step_init_op
-      if is_chief:
-        local_init_op = opt.chief_init_op
-
-      ready_for_local_init_op = opt.ready_for_local_init_op
-
-      # Initial token and chief queue runners required by the sync_replicas mode
-      chief_queue_runner = opt.get_chief_queue_runner()
-      sync_init_op = opt.get_init_tokens_op()
-
-
-
-
-    init_op = tf.global_variables_initializer()
-    train_dir = tempfile.mkdtemp()
-
-    if FLAGS.sync_replicas:
-      sv = tf.train.Supervisor(
-          is_chief=is_chief,
-          logdir=train_dir,
-          init_op=init_op,
-          local_init_op=local_init_op,
-          ready_for_local_init_op=ready_for_local_init_op,
-          recovery_wait_secs=1,
-          global_step=global_step)
-    else:
-      sv = tf.train.Supervisor(
-          is_chief=is_chief,
-          logdir=train_dir,
-          init_op=init_op,
-          recovery_wait_secs=1,
-          global_step=global_step)
-
-    sess_config = tf.ConfigProto(
-        allow_soft_placement=True,
-        log_device_placement=False,
-        device_filters=["/job:ps",
-                        "/job:worker/task:%d" % FLAGS.task_index])
-
-    # The chief worker (task_index==0) session will prepare the session,
-    # while the remaining workers will wait for the preparation to complete.
-    if is_chief:
-      print("Worker %d: Initializing session..." % FLAGS.task_index)
-    else:
-      print("Worker %d: Waiting for session to be initialized..." %
-            FLAGS.task_index)
-
-    if FLAGS.existing_servers:
-      server_grpc_url = "grpc://" + worker_spec[FLAGS.task_index]
-      print("Using existing server at: %s" % server_grpc_url)
-
-      sess = sv.prepare_or_wait_for_session(server_grpc_url, config=sess_config)
-    else:
-      sess = sv.prepare_or_wait_for_session(server.target, config=sess_config)
-
-    print("Worker %d: Session initialization complete." % FLAGS.task_index)
-       
-    
-    # 'training_epochs' training cycles
-    for epoch in range(training_epochs):
-
-        # Cost
-        avg_cost = 0.0
-
-        total_batch = int(n_samples/batch_size)
-
-        for i in range(total_batch):
-
-            batch_x, batch_y = mnist.train.next_batch(batch_size)
-
-            _, c = sess.run([optimizer, cost], feed_dict={x: batch_x, y: batch_y})
-
-            avg_cost += c/total_batch
-
-        print("Epoch : {} -> cost : {:.4f}".format(epoch, avg_cost))
-
-    print("Model has completed {} Epochs of training".format(training_epochs))
-
-    if is_chief:
-        # Model evaluations
-        correct_predictions = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))  # Tensor of bool
-        correct_predictions = tf.cast(correct_predictions, 'float')  # Cast it to a tensor of floats sor that we can get the
-        # mean
-
-        accuracy = tf.reduce_mean(correct_predictions)
-
-        # We now evaluate this accuracy on the test dataset
-        print('\nTest Dataset accuracy: {:.4f}'.format(accuracy.eval({x: mnist.test.images, y: mnist.test.labels})))
-
-
-    
-if __name__ == "__main__":
-  tf.app.run()
+import tensorflow_datasets as tfds
+import tempfile
+
+def preprocess(x, y):
+  # Reshaping the data
+  x = tf.reshape(x, shape=[-1, 784])
+  # Rescaling the data
+  x = x/255
+  return x, y
+
+def xavier_init(shape):
+  # Computes the xavier initialization values for a weight matrix
+  in_dim, out_dim = shape
+  xavier_lim = tf.sqrt(6.)/tf.sqrt(tf.cast(in_dim + out_dim, tf.float32))
+  weight_vals = tf.random.uniform(
+    shape=(in_dim, out_dim), minval=-xavier_lim, maxval=xavier_lim, 
+    seed=22)
+  return weight_vals
+
+class DenseLayer(tf.Module):
+
+  def __init__(self, out_dim, weight_init=xavier_init, activation=tf.identity):
+    # Initialize the dimensions and activation functions
+    self.out_dim = out_dim
+    self.weight_init = weight_init
+    self.activation = activation
+    self.built = False
+
+  def __call__(self, x):
+    if not self.built:
+      # Infer the input dimension based on first call
+      self.in_dim = x.shape[1]
+      # Initialize the weights and biases
+      self.w = tf.Variable(self.weight_init(shape=(self.in_dim, self.out_dim)))
+      self.b = tf.Variable(tf.zeros(shape=(self.out_dim,)))
+      self.built = True
+    # Compute the forward pass
+    z = tf.add(tf.matmul(x, self.w), self.b)
+    return self.activation(z)
+
+
+
+class MLP(tf.Module):
+
+  def __init__(self, layers):
+    self.layers = layers
+
+  @tf.function
+  def __call__(self, x, preds=False): 
+    # Execute the model's layers sequentially
+    for layer in self.layers:
+      x = layer(x)
+    return x
+
+class Adam:
+
+    def __init__(self, learning_rate=1e-3, beta_1=0.9, beta_2=0.999, ep=1e-7):
+      # Initialize optimizer parameters and variable slots
+      self.beta_1 = beta_1
+      self.beta_2 = beta_2
+      self.learning_rate = learning_rate
+      self.ep = ep
+      self.t = 1.
+      self.v_dvar, self.s_dvar = [], []
+      self.built = False
+
+    def apply_gradients(self, grads, vars):
+      # Initialize variables on the first call
+      if not self.built:
+        for var in vars:
+          v = tf.Variable(tf.zeros(shape=var.shape))
+          s = tf.Variable(tf.zeros(shape=var.shape))
+          self.v_dvar.append(v)
+          self.s_dvar.append(s)
+        self.built = True
+      # Update the model variables given their gradients
+      for i, (d_var, var) in enumerate(zip(grads, vars)):
+        self.v_dvar[i].assign(self.beta_1*self.v_dvar[i] + (1-self.beta_1)*d_var)
+        self.s_dvar[i].assign(self.beta_2*self.s_dvar[i] + (1-self.beta_2)*tf.square(d_var))
+        v_dvar_bc = self.v_dvar[i]/(1-(self.beta_1**self.t))
+        s_dvar_bc = self.s_dvar[i]/(1-(self.beta_2**self.t))
+        var.assign_sub(self.learning_rate*(v_dvar_bc/(tf.sqrt(s_dvar_bc) + self.ep)))
+      self.t += 1.
+      return
+
+
+def cross_entropy_loss(y_pred, y):
+  # Compute cross entropy loss with a sparse operation
+  sparse_ce = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=y_pred)
+  return tf.reduce_mean(sparse_ce)
+
+def accuracy(y_pred, y):
+  # Compute accuracy after extracting class predictions
+  class_preds = tf.argmax(tf.nn.softmax(y_pred), axis=1)
+  is_equal = tf.equal(y, class_preds)
+  return tf.reduce_mean(tf.cast(is_equal, tf.float32))
+
+def train_step(x_batch, y_batch, loss, acc, model, optimizer):
+  # Update the model state given a batch of data
+  with tf.GradientTape() as tape:
+    y_pred = model(x_batch)
+    batch_loss = loss(y_pred, y_batch)
+  batch_acc = acc(y_pred, y_batch)
+  grads = tape.gradient(batch_loss, model.variables)
+  optimizer.apply_gradients(grads, model.variables)
+  return batch_loss, batch_acc
+
+def val_step(x_batch, y_batch, loss, acc, model):
+  # Evaluate the model on given a batch of validation data
+  y_pred = model(x_batch)
+  batch_loss = loss(y_pred, y_batch)
+  batch_acc = acc(y_pred, y_batch)
+  return batch_loss, batch_acc
+
+def train_model(mlp, train_data, val_data, loss, acc, optimizer, epochs):
+  # Initialize data structures
+  train_losses, train_accs = [], []
+  val_losses, val_accs = [], []
+
+  # Format training loop and begin training
+  for epoch in range(epochs):
+    batch_losses_train, batch_accs_train = [], []
+    batch_losses_val, batch_accs_val = [], []
+
+    # Iterate over the training data
+    for x_batch, y_batch in train_data:
+      # Compute gradients and update the model's parameters
+      batch_loss, batch_acc = train_step(x_batch, y_batch, loss, acc, mlp, optimizer)
+      # Keep track of batch-level training performance
+      batch_losses_train.append(batch_loss)
+      batch_accs_train.append(batch_acc)
+
+    # Iterate over the validation data
+    for x_batch, y_batch in val_data:
+      batch_loss, batch_acc = val_step(x_batch, y_batch, loss, acc, mlp)
+      batch_losses_val.append(batch_loss)
+      batch_accs_val.append(batch_acc)
+
+    # Keep track of epoch-level model performance
+    train_loss, train_acc = tf.reduce_mean(batch_losses_train), tf.reduce_mean(batch_accs_train)
+    val_loss, val_acc = tf.reduce_mean(batch_losses_val), tf.reduce_mean(batch_accs_val)
+    train_losses.append(train_loss)
+    train_accs.append(train_acc)
+    val_losses.append(val_loss)
+    val_accs.append(val_acc)
+    print(f"Epoch: {epoch}")
+    print(f"Training loss: {train_loss:.3f}, Training accuracy: {train_acc:.3f}")
+    print(f"Validation loss: {val_loss:.3f}, Validation accuracy: {val_acc:.3f}")
+  return train_losses, train_accs, val_losses, val_accs
+
+
+def create_in_process_cluster(num_workers, num_ps):
+  """Creates and starts local servers and returns the cluster_resolver."""
+  worker_ports = [portpicker.pick_unused_port() for _ in range(num_workers)]
+  ps_ports = [portpicker.pick_unused_port() for _ in range(num_ps)]
+
+  cluster_dict = {}
+  cluster_dict["worker"] = ["localhost:%s" % port for port in worker_ports]
+  if num_ps > 0:
+    cluster_dict["ps"] = ["localhost:%s" % port for port in ps_ports]
+
+  cluster_spec = tf.train.ClusterSpec(cluster_dict)
+
+  # Workers need some inter_ops threads to work properly.
+  worker_config = tf.compat.v1.ConfigProto()
+  if multiprocessing.cpu_count() < num_workers + 1:
+    worker_config.inter_op_parallelism_threads = num_workers + 1
+
+  for i in range(num_workers):
+    tf.distribute.Server(
+        cluster_spec,
+        job_name="worker",
+        task_index=i,
+        config=worker_config,
+        protocol="grpc")
+
+  for i in range(num_ps):
+    tf.distribute.Server(
+        cluster_spec,
+        job_name="ps",
+        task_index=i,
+        protocol="grpc")
+
+  cluster_resolver = tf.distribute.cluster_resolver.SimpleClusterResolver(
+      cluster_spec, rpc_layer="grpc")
+  return cluster_resolver
+
+# Set the environment variable to allow reporting worker and ps failure to the
+# coordinator. This is a workaround and won't be necessary in the future.
+os.environ["GRPC_FAIL_FAST"] = "use_caller"
+
+NUM_WORKERS = 3
+NUM_PS = 1
+cluster_resolver = create_in_process_cluster(NUM_WORKERS, NUM_PS)
+
+
+variable_partitioner = (
+    tf.distribute.experimental.partitioners.MinSizePartitioner(
+        min_shard_bytes=(256 << 10),
+        max_shards=NUM_PS))
+
+strategy = tf.distribute.ParameterServerStrategy(
+    cluster_resolver,
+    variable_partitioner=variable_partitioner)
+
+
+
+global_batch_size = 64
+
+x = tf.random.uniform((10, 10))
+y = tf.random.uniform((10,))
+
+dataset = tf.data.Dataset.from_tensor_slices((x, y)).shuffle(10).repeat()
+dataset = dataset.batch(global_batch_size)
+dataset = dataset.prefetch(2)
+
+train_data, val_data, test_data = tfds.load(
+    "mnist", split=['train[10000:]', 'train[0:10000]', 'test'],
+    batch_size=128, as_supervised=True)
+
+hidden_layer_1_size = 700
+hidden_layer_2_size = 500
+output_size = 10
+
+
+with strategy.scope():
+  # model = tf.keras.models.Sequential([tf.keras.layers.Dense(10)])
+
+  # model.compile(tf.keras.optimizers.legacy.SGD(), loss="mse", steps_per_execution=10)
+
+  # working_dir = "/tmp/my_working_dir"
+  # log_dir = os.path.join(working_dir, "log")
+  # ckpt_filepath = os.path.join(working_dir, "ckpt")
+  # backup_dir = os.path.join(working_dir, "backup")
+
+  # callbacks = [
+  #   tf.keras.callbacks.TensorBoard(log_dir=log_dir),
+  #   tf.keras.callbacks.ModelCheckpoint(filepath=ckpt_filepath),
+  #   tf.keras.callbacks.BackupAndRestore(backup_dir=backup_dir),
+  # ]
+
+  # model.fit(dataset, epochs=5, steps_per_epoch=20, callbacks=callbacks)
+
+  train_data, val_data = train_data.map(preprocess), val_data.map(preprocess)
+
+
+  mlp_model = MLP([
+    DenseLayer(out_dim=hidden_layer_1_size, activation=tf.nn.relu),
+    DenseLayer(out_dim=hidden_layer_2_size, activation=tf.nn.relu),
+    DenseLayer(out_dim=output_size)])
+
+  train_losses, train_accs, val_losses, val_accs = train_model(
+    mlp_model, train_data, val_data, loss=cross_entropy_loss, 
+    acc=accuracy, optimizer=Adam(), epochs=10)
