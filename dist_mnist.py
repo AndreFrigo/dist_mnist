@@ -7,7 +7,7 @@ import tensorflow_datasets as tfds
 import tempfile
 import time
 
-NUM_WORKERS = 3
+NUM_WORKERS = 10
 NUM_PS = 1
 
 def preprocess(x, y):
