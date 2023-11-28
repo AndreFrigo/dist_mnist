@@ -194,7 +194,7 @@ def main(unused_argv):
     opt = tf.train.AdamOptimizer(FLAGS.learning_rate)
 
     if FLAGS.sync_replicas:
-      replicas_to_aggregate = int(num_workers*0.1)
+      replicas_to_aggregate = 3
       opt = tf.train.SyncReplicasOptimizer(
           opt,
           replicas_to_aggregate=replicas_to_aggregate,
