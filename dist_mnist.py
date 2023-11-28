@@ -279,7 +279,7 @@ def main(unused_argv):
 
       _, step = sess.run([train_step, global_step], feed_dict=train_feed)
       local_step += 1
-      print("Done step: "+str(step))
+      print("Node "+str(FLAGS.task_index)+" done step: "+str(step))
       now = time.time()
       #print("%f: Worker %d: training step %d done (global step: %d)" %(now, FLAGS.task_index, local_step, step))
 
