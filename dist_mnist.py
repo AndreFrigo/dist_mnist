@@ -5,6 +5,7 @@ import portpicker
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import tempfile
+import time
 
 NUM_WORKERS = 3
 NUM_PS = 1
