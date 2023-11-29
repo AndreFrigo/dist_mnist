@@ -20,6 +20,7 @@ cpustring = "localhost:2223"
 for i in range(1,nodes):
     cpustring += ",localhost:"+str(2223+i)
 
+flags = tf.app.flags
 flags.DEFINE_integer("task_index", None,
                      "Worker task index, should be >= 0. task_index=0 is "
                      "the master worker task the performs the variable "
