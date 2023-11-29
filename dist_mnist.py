@@ -221,14 +221,16 @@ with tf.device(tf.train.replica_device_setter(
     time_begin = time.time()
     print("Training begins @ %f" % time_begin)
     print("Nodes="+str(nodes))
-
+    cont = 0
     while True:
+        cont += 1
         batch = mnist.train.next_batch(FLAGS.batch_size)
         _, step = sess.run([train_step, global_step], feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
         now = time.time()
         if step%100==0:
             print("time: %f, step: %d" % (now, step-(step%1000)))
         if step >= FLAGS.train_steps: break
+        if cont > 600: break
 
     time_end = time.time()
     print("Training ends @ %f" % time_end)
