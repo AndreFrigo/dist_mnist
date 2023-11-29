@@ -230,6 +230,7 @@ with tf.device(tf.train.replica_device_setter(
         print("Step: "+str(step))
         if step >= FLAGS.train_steps: 
             print("Step > FLAGS.train_steps")
+            sys.exit(0)
             break
         
 
