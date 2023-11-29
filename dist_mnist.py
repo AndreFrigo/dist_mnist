@@ -27,7 +27,7 @@ flags.DEFINE_integer("task_index", None,
                      "initialization ")
 flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
                      "If you don't use GPU, please set it to '0'")
-flags.DEFINE_integer("train_steps", 200,
+flags.DEFINE_integer("train_steps", 50,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 10e-4, "Learning rate")
@@ -221,6 +221,7 @@ with tf.device(tf.train.replica_device_setter(
     time_begin = time.time()
     print("Training begins @ %f" % time_begin)
     print("Nodes="+str(nodes))
+    cont = 0
     while True:
         batch = mnist.train.next_batch(FLAGS.batch_size)
         _, step = sess.run([train_step, global_step], feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
@@ -228,6 +229,10 @@ with tf.device(tf.train.replica_device_setter(
         if step%100==0:
             print("time: %f, step: %d" % (now, step-(step%100)))
         print("Step: "+str(step))
+        if (cont > 60):
+            print("Steps: "+str(step))
+            print("Breaking due to condition debug")
+            sys.exit(0)
         if step >= FLAGS.train_steps: 
             print("Step > FLAGS.train_steps")
             sys.exit(0)
