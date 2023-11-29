@@ -13,7 +13,7 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 #number of nodes
-nodes = 5
+nodes = 1
 
 #setup for parallelization with kubeflow
 cpustring = "localhost:2223"
@@ -27,7 +27,7 @@ flags.DEFINE_integer("task_index", None,
                      "initialization ")
 flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
                      "If you don't use GPU, please set it to '0'")
-flags.DEFINE_integer("train_steps", 2000,
+flags.DEFINE_integer("train_steps", 100,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 10e-4, "Learning rate")
