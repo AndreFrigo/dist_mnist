@@ -27,7 +27,7 @@ flags.DEFINE_integer("task_index", None,
                      "initialization ")
 flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
                      "If you don't use GPU, please set it to '0'")
-flags.DEFINE_integer("train_steps", 500,
+flags.DEFINE_integer("train_steps", 200,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 10e-4, "Learning rate")
@@ -66,9 +66,6 @@ print("task index = %d" % FLAGS.task_index)
 cluster_config = tf_config.get('cluster', {})
 ps_hosts = cluster_config.get('ps')
 worker_hosts = cluster_config.get('worker')
-print("Cluster config: "+str(cluster_config))
-print("ps_host: "+str(ps_hosts))
-print("Worker hosts: "+str(worker_hosts))
 ps_hosts_str = ','.join(ps_hosts)
 worker_hosts_str = ','.join(worker_hosts)
 
@@ -81,6 +78,7 @@ worker_spec = FLAGS.worker_hosts.split(",")
 
 # Get the number of workers.
 num_workers = len(worker_spec)
+print("Step to execute: "+str(FLAGS.train_steps))
 
 cluster = tf.train.ClusterSpec({"ps": ps_spec, "worker": worker_spec})
 
@@ -223,19 +221,17 @@ with tf.device(tf.train.replica_device_setter(
     time_begin = time.time()
     print("Training begins @ %f" % time_begin)
     print("Nodes="+str(nodes))
-    cont = 0
     while True:
         batch = mnist.train.next_batch(FLAGS.batch_size)
         _, step = sess.run([train_step, global_step], feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
         now = time.time()
         if step%100==0:
             print("time: %f, step: %d" % (now, step-(step%100)))
-        if step >= FLAGS.train_steps: break
-        cont += 1
-        if (cont > 40):
-            print("Cont: "+str(cont))
-            print("Step: "+str(step))
-            sys.exit(0)
+        print("Step: "+str(step))
+        if step >= FLAGS.train_steps: 
+            print("Step > FLAGS.train_steps")
+            break
+        
 
     time_end = time.time()
     print("Training ends @ %f" % time_end)
