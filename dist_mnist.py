@@ -235,7 +235,11 @@ with tf.device(tf.train.replica_device_setter(
     time_end = time.time()
     print("Training ends @ %f" % time_end)
     print("Steps: %d, Batch size: %d" % (FLAGS.train_steps, FLAGS.batch_size))
-
+    
+    training_time = time_end - time_begin
+    starting_time = time_begin - time_start
+    print("Starting time (time lost before starting training): %f s" % starting_time)
+    print("Training elapsed time: %f s" % training_time)
 
     if is_chief:
         # # Validation feed
