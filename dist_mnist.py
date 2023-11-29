@@ -250,10 +250,9 @@ with tf.device(tf.train.replica_device_setter(
         # test_feed = {x: mnist.test.images, y_: mnist.test.labels}
         # test_acc = sess.run(accuracy, feed_dict=test_feed)
         # print("Test accuracy = %g" % (test_acc*100))
-        pass
         
-    test_acc = sess.run(accuracy, feed_dict={x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0})
-    print("Test accuracy = %g" % (test_acc * 100))
+        test_acc = sess.run(accuracy, feed_dict={x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0})
+        print("Test accuracy = %g" % (test_acc * 100))
 
 
     # with tf.Session() as sess:
