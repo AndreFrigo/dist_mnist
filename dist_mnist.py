@@ -66,7 +66,9 @@ print("task index = %d" % FLAGS.task_index)
 cluster_config = tf_config.get('cluster', {})
 ps_hosts = cluster_config.get('ps')
 worker_hosts = cluster_config.get('worker')
-
+print("Cluster config: "+str(cluster_config))
+print("ps_host: "+str(ps_hosts))
+print("Worker hosts: "+str(worker_hosts))
 ps_hosts_str = ','.join(ps_hosts)
 worker_hosts_str = ','.join(worker_hosts)
 
@@ -221,16 +223,14 @@ with tf.device(tf.train.replica_device_setter(
     time_begin = time.time()
     print("Training begins @ %f" % time_begin)
     print("Nodes="+str(nodes))
-    cont = 0
+
     while True:
-        cont += 1
         batch = mnist.train.next_batch(FLAGS.batch_size)
         _, step = sess.run([train_step, global_step], feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
         now = time.time()
         if step%100==0:
-            print("time: %f, step: %d" % (now, step-(step%1000)))
+            print("time: %f, step: %d" % (now, step-(step%100)))
         if step >= FLAGS.train_steps: break
-        if cont > 600: break
 
     time_end = time.time()
     print("Training ends @ %f" % time_end)
@@ -238,16 +238,19 @@ with tf.device(tf.train.replica_device_setter(
 
 
     if is_chief:
-        # Validation feed
-        val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
-        val_acc = sess.run(accuracy, feed_dict=val_feed)
-        print("Validation accuracy = %g" % (val_acc*100))
+        # # Validation feed
+        # val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
+        # val_acc = sess.run(accuracy, feed_dict=val_feed)
+        # print("Validation accuracy = %g" % (val_acc*100))
 
 
-        # Test feed
-        test_feed = {x: mnist.test.images, y_: mnist.test.labels}
-        test_acc = sess.run(accuracy, feed_dict=test_feed)
-        print("Test accuracy = %g" % (test_acc*100))
+        # # Test feed
+        # test_feed = {x: mnist.test.images, y_: mnist.test.labels}
+        # test_acc = sess.run(accuracy, feed_dict=test_feed)
+        # print("Test accuracy = %g" % (test_acc*100))
+
+        print("Test accuracy = %g" % (accuracy.eval(feed_dict={
+            x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}) * 100))
 
 
     # with tf.Session() as sess:
