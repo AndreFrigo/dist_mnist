@@ -83,7 +83,7 @@ worker_spec = FLAGS.worker_hosts.split(",")
 num_workers = len(worker_spec)
 
 cluster = tf.train.ClusterSpec({"ps": ps_spec, "worker": worker_spec})
-
+sys.exit(0)
 
 # Not using existing servers. Create an in-process server.
 server = tf.train.Server(cluster, job_name=FLAGS.job_name, task_index=FLAGS.task_index)
