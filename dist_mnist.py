@@ -13,7 +13,7 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 #number of nodes
-nodes = 1
+nodes = 5
 
 #setup for parallelization with kubeflow
 cpustring = "localhost:2223"
@@ -227,9 +227,7 @@ with tf.device(tf.train.replica_device_setter(
         now = time.time()
         if step%10==0:
             print("time: %f, step: %d" % (now, step-(step%10)))
-        if step >= FLAGS.train_steps: 
-            print("Step > FLAGS.train_steps")
-            break
+        if step >= FLAGS.train_steps: break
         
 
     time_end = time.time()
