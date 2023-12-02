@@ -27,7 +27,7 @@ flags.DEFINE_integer("task_index", None,
                      "initialization ")
 flags.DEFINE_integer("num_gpus", 0, "Total number of gpus for each machine."
                      "If you don't use GPU, please set it to '0'")
-flags.DEFINE_integer("train_steps", 500,
+flags.DEFINE_integer("train_steps", 100,
                      "Number of (global) training steps to perform")
 flags.DEFINE_integer("batch_size", 100, "Training batch size")
 flags.DEFINE_float("learning_rate", 10e-4, "Learning rate")
@@ -66,9 +66,6 @@ print("task index = %d" % FLAGS.task_index)
 cluster_config = tf_config.get('cluster', {})
 ps_hosts = cluster_config.get('ps')
 worker_hosts = cluster_config.get('worker')
-print("Cluster config: "+str(cluster_config))
-print("ps_host: "+str(ps_hosts))
-print("Worker hosts: "+str(worker_hosts))
 ps_hosts_str = ','.join(ps_hosts)
 worker_hosts_str = ','.join(worker_hosts)
 
@@ -81,6 +78,7 @@ worker_spec = FLAGS.worker_hosts.split(",")
 
 # Get the number of workers.
 num_workers = len(worker_spec)
+print("Step to execute: "+str(FLAGS.train_steps))
 
 cluster = tf.train.ClusterSpec({"ps": ps_spec, "worker": worker_spec})
 
@@ -223,34 +221,38 @@ with tf.device(tf.train.replica_device_setter(
     time_begin = time.time()
     print("Training begins @ %f" % time_begin)
     print("Nodes="+str(nodes))
-
     while True:
         batch = mnist.train.next_batch(FLAGS.batch_size)
         _, step = sess.run([train_step, global_step], feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
         now = time.time()
-        if step%100==0:
-            print("time: %f, step: %d" % (now, step-(step%100)))
+        if step%10==0:
+            print("time: %f, step: %d" % (now, step-(step%10)))
         if step >= FLAGS.train_steps: break
+        
 
     time_end = time.time()
     print("Training ends @ %f" % time_end)
     print("Steps: %d, Batch size: %d" % (FLAGS.train_steps, FLAGS.batch_size))
-
+    
+    training_time = time_end - time_begin
+    starting_time = time_begin - time_start
+    print("Starting time (time lost before starting training): %f s" % starting_time)
+    print("Training elapsed time: %f s" % training_time)
 
     if is_chief:
         # # Validation feed
         # val_feed = {x: mnist.validation.images, y_: mnist.validation.labels}
         # val_acc = sess.run(accuracy, feed_dict=val_feed)
         # print("Validation accuracy = %g" % (val_acc*100))
-
+        pass
 
         # # Test feed
         # test_feed = {x: mnist.test.images, y_: mnist.test.labels}
         # test_acc = sess.run(accuracy, feed_dict=test_feed)
         # print("Test accuracy = %g" % (test_acc*100))
-
-        print("Test accuracy = %g" % (accuracy.eval(feed_dict={
-            x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}) * 100))
+        
+        test_acc = sess.run(accuracy, feed_dict={x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0})
+        print("Test accuracy = %g" % (test_acc * 100))
 
 
     # with tf.Session() as sess:
