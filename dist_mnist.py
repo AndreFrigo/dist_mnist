@@ -13,7 +13,7 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 #number of nodes
-nodes = 1
+nodes = 2
 
 #setup for parallelization with kubeflow
 cpustring = "localhost:2223"
